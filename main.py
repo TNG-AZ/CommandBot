@@ -3,8 +3,8 @@ from discord.ext import commands
 from discord.ui import Select, View
 from discord import SelectOption
 from datetime import datetime
-from config_example import TOKEN
-
+#from config_example import TOKEN
+from config import TOKEN
 
 async def get_future_event_selectmenu(ctx: discord.ApplicationContext):
     events = await ctx.guild.fetch_scheduled_events()
