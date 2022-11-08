@@ -46,6 +46,11 @@ bot = discord.Bot(
 async def event_dm(ctx: discord.ApplicationContext):
     await ctx.response.defer()
     await bot.wait_until_ready()
+
+    if not ctx.interaction.permissions.manage_events:
+        await ctx.send_followup("https://www.youtube.com/watch?v=RfiQYRn7fBg")
+        return
+
     event_options = await get_future_event_selectmenu(ctx)
 
     if not event_options:
