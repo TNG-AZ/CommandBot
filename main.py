@@ -16,7 +16,7 @@ async def get_future_event_selectmenu(ctx: discord.ApplicationContext):
         return
 
     events = sorted(
-        [e for e in events if e.start_time.date() >= datetime.utcnow().date()],
+        [e for e in events if e.start_time.date() >= datetime.today().date()],
         key=lambda e: e.start_time.timestamp
     )
     options = []
@@ -44,6 +44,7 @@ bot = discord.Bot(
 
 @bot.slash_command(name="eventdm")
 async def event_dm(ctx: discord.ApplicationContext):
+    await bot.wait_until_ready()
     event_options = await get_future_event_selectmenu(ctx)
 
     if not event_options:
