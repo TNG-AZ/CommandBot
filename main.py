@@ -17,14 +17,14 @@ async def get_future_event_selectmenu(ctx: discord.ApplicationContext):
 
     events = sorted(
         [e for e in events if e.start_time.date() >= datetime.today().date()],
-        key=lambda e: e.start_time.timestamp
+        key=lambda e: e.start_time.timestamp()
     )
     options = []
     for event in events:
         options.append(SelectOption(
             label=f"{event.name} on {event.start_time:%d-%m-%y}",
             value=str(event.id),
-            description=event.description
+            description= event.description if len(event.description) <= 100 else f"{event.description[:97]}..."
         ))
     select = Select(
         placeholder="Select an upcoming event",
@@ -44,6 +44,7 @@ bot = discord.Bot(
 
 @bot.slash_command(name="eventdm")
 async def event_dm(ctx: discord.ApplicationContext):
+    await ctx.response.defer()
     await bot.wait_until_ready()
     event_options = await get_future_event_selectmenu(ctx)
 
@@ -61,12 +62,14 @@ async def event_dm(ctx: discord.ApplicationContext):
     )
 
     async def event_select_callback(interaction: discord.Interaction):
-        event_options.disabled = True
+        await interaction.response.defer()
+
         event_id = event_options.values[0]
         event = await ctx.guild.fetch_scheduled_event(event_id)
 
         if event.subscriber_count == 0:
-            return await interaction.response.send_message(f"No one seems to be interested in {event.name}")
+            await ctx.send(f"No one seems to be interested in {event.name}")
+            return await interaction.message.delete()
 
         if event.subscriber_count == 1:
             subscribers = await event.subscribers().next()
@@ -136,7 +139,7 @@ message:{message}"""
 
     event_options.callback = event_select_callback
     view = View(event_options)
-    await ctx.respond("", view=view)
+    await ctx.send_followup("", view=view)
 
 
 bot.run(TOKEN)
