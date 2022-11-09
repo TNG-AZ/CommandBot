@@ -77,7 +77,7 @@ async def event_dm(ctx: discord.ApplicationContext):
             return await interaction.message.delete()
 
         if event.subscriber_count == 1:
-            subscribers = await event.subscribers().next()
+            subscribers = [await event.subscribers().next()]
         else:
             subscribers = await event.subscribers().flatten()
 
@@ -95,10 +95,7 @@ async def event_dm(ctx: discord.ApplicationContext):
 
                 message = modal.children[0].value
 
-                if event.subscriber_count == 1:
-                    target_names = subscribers.name
-                else:
-                    target_names = ", ".join([s.name for s in subscribers])
+                target_names = ", ".join([s.name for s in subscribers])
 
                 await interaction.response.send_message(
                     f"""event:{event.name} on {event.start_time:%d-%m-%y}
@@ -114,8 +111,6 @@ message:{message}"""
                     nonlocal subscribers, message
 
                     await interaction.response.defer()
-                    if event.subscriber_count == 1:
-                        subscribers = [subscribers]
 
                     sent_button_view = View(Button(disabled=True, label="SENT"))
 
