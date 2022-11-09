@@ -112,25 +112,27 @@ message:{message}"""
 
                 async def confirm_callback(interaction: discord.Interaction):
                     nonlocal subscribers, message
-                    await interaction.message.delete()
+
+                    await interaction.response.defer()
                     if event.subscriber_count == 1:
                         subscribers = [subscribers]
+
+                    sent_button_view = View(Button(disabled=True, label="SENT"))
 
                     if message_type == "DM":
                         for sub in subscribers:
                             await sub.send(message)
-                        await ctx.send(view=View(Button(disabled=True, label="SENT")))
+                        return await interaction.message.edit(view=sent_button_view)
                     else:
                         message_with_tag = ", ".join([sub.mention for sub in subscribers])
                         message_with_tag += "\n\n"
                         message_with_tag += message
-                        await ctx.send(message_with_tag)
-                    return await interaction.response.defer()
+                        await interaction.message.edit(view=sent_button_view)
+                        return await ctx.send(message_with_tag)
 
                 confirm_button.callback = confirm_callback
                 view = View(confirm_button)
-                await ctx.send(view=view)
-                return await interaction.response.defer()
+                return await ctx.send(view=view)
 
             modal.callback = modal_callback
             await interaction.response.send_modal(modal)
@@ -139,8 +141,7 @@ message:{message}"""
         message_options.callback = message_option_callback
 
         view = View(message_options)
-        await interaction.message.edit(view=view)
-        return await interaction.response.defer()
+        return await interaction.message.edit(view=view)
 
     event_options.callback = event_select_callback
     view = View(event_options)
