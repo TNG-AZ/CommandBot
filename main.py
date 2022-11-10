@@ -1,7 +1,4 @@
-import time
-
 import discord
-from discord.ext import commands
 from discord.ui import Select, View, Button
 from discord import SelectOption
 from datetime import datetime
@@ -37,13 +34,19 @@ async def get_future_event_selectmenu(ctx: discord.ApplicationContext):
 
 intents = discord.Intents.none()
 intents.scheduled_events = True
+intents.members = True
+intents.guilds = True
 bot = discord.Bot(
     intents=intents,
 )
 
 
 @bot.slash_command(name="eventdm")
-async def event_dm(ctx: discord.ApplicationContext):
+async def event_dm(
+        ctx: discord.ApplicationContext,
+        role: discord.Option(discord.Role, "Who would you like to message?", required=False),
+        channel: discord.Option(discord.TextChannel, "What channel to send tagged message?", required=False)
+):
     await ctx.response.defer()
     await bot.wait_until_ready()
 
@@ -68,6 +71,7 @@ async def event_dm(ctx: discord.ApplicationContext):
 
     async def event_select_callback(interaction: discord.Interaction):
         await interaction.response.defer()
+        await bot.wait_until_ready()
 
         event_id = event_options.values[0]
         event = await ctx.guild.fetch_scheduled_event(event_id)
@@ -80,6 +84,14 @@ async def event_dm(ctx: discord.ApplicationContext):
             subscribers = [await event.subscribers().next()]
         else:
             subscribers = await event.subscribers().flatten()
+
+        roles = ctx.guild.get_member(subscribers[0].id).roles
+        if role:
+            subscribers = [sub for sub in subscribers if role in ctx.guild.get_member(sub.id).roles]
+
+        if not subscribers:
+            await ctx.send(f"It looks like no one with the role {role.name} is interested in {event.name}")
+            return await interaction.message.delete()
 
         async def message_option_callback(interaction: discord.Interaction):
             nonlocal event_id, event_options
@@ -123,7 +135,7 @@ message:{message}"""
                         message_with_tag += "\n\n"
                         message_with_tag += message
                         await interaction.message.edit(view=sent_button_view)
-                        return await ctx.send(message_with_tag)
+                        return await channel.send(message_with_tag) if channel else ctx.send(message_with_tag)
 
                 confirm_button.callback = confirm_callback
                 view = View(confirm_button)
