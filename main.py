@@ -135,7 +135,7 @@ message:{message}"""
                         message_with_tag += "\n\n"
                         message_with_tag += message
                         await interaction.message.edit(view=sent_button_view)
-                        return await channel.send(message_with_tag) if channel else ctx.send(message_with_tag)
+                        return await channel.send(message_with_tag) if channel else await ctx.send(message_with_tag)
 
                 confirm_button.callback = confirm_callback
                 view = View(confirm_button)
