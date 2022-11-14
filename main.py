@@ -51,8 +51,7 @@ async def event_dm(
     await bot.wait_until_ready()
 
     if not ctx.interaction.permissions.manage_events:
-        await ctx.send_followup("https://www.youtube.com/watch?v=RfiQYRn7fBg")
-        return
+        return await ctx.send_followup("https://www.youtube.com/watch?v=RfiQYRn7fBg")
 
     event_options = await get_future_event_selectmenu(ctx)
 
@@ -85,7 +84,6 @@ async def event_dm(
         else:
             subscribers = await event.subscribers().flatten()
 
-        roles = ctx.guild.get_member(subscribers[0].id).roles
         if role:
             subscribers = [sub for sub in subscribers if role in ctx.guild.get_member(sub.id).roles]
 
@@ -146,7 +144,6 @@ message:{message}"""
             return await interaction.message.delete()
 
         message_options.callback = message_option_callback
-
         view = View(message_options)
         return await interaction.message.edit(view=view)
 
