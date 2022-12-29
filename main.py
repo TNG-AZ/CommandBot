@@ -4,7 +4,7 @@ from discord import SelectOption
 from datetime import datetime
 
 # from config_example import TOKEN
-from config import TOKEN
+from config import TOKEN, ADMIN_USER_ID
 
 
 async def get_future_event_selectmenu(ctx: discord.ApplicationContext):
@@ -21,7 +21,7 @@ async def get_future_event_selectmenu(ctx: discord.ApplicationContext):
         options.append(SelectOption(
             label=f"{event.name} on {event.start_time:%d-%m-%y}",
             value=str(event.id),
-            description= event.description if len(event.description) <= 100 else f"{event.description[:97]}..."
+            description=event.description if len(event.description) <= 100 else f"{event.description[:97]}..."
         ))
     select = Select(
         placeholder="Select an upcoming event",
@@ -150,6 +150,69 @@ message:{message}"""
     event_options.callback = event_select_callback
     view = View(event_options)
     await ctx.send_followup("", view=view)
+
+
+@bot.slash_command(name="join")
+async def join_server(ctx: discord.ApplicationContext):
+    await ctx.response.defer()
+    await bot.wait_until_ready()
+
+    form_button = Button(
+        label="Go to membership form",
+        url="https://google.com"
+    )
+    confirm_button = Button(label="Confirm")
+
+    async def confirm_button_callback(button_interaction: discord.Interaction):
+        if button_interaction.user != ctx.author:
+            return
+
+        await button_interaction.message.delete()
+
+        modal = discord.ui.Modal(
+            title="Discord New User Form")
+        modal.add_item(discord.ui.InputText(
+            label="FetLife username",
+            required=False,
+            style=discord.InputTextStyle.short)
+        )
+        modal.add_item(discord.ui.InputText(
+            label="How did you find us?",
+            required=False,
+            style=discord.InputTextStyle.short)
+        )
+        modal.add_item(discord.ui.InputText(
+            label="optional: message for approving moderator",
+            required=False,
+            style=discord.InputTextStyle.paragraph)
+        )
+
+        async def modal_callback(modal_interaction: discord.Interaction):
+            await modal_interaction.response.defer()
+            nonlocal modal
+            modal.stop()
+
+            await bot.get_user(ADMIN_USER_ID).send(
+                f"new Discord membership form for {ctx.author.mention}\n"
+                + "\n".join([f"{index}:{child.value}" for index, child in enumerate(modal.children) if len(child.value) > 0]))
+
+            return await ctx.send(
+                f"Received Discord new user form for {modal_interaction.user.mention}"
+            )
+
+        modal.callback = modal_callback
+        return await button_interaction.response.send_modal(modal)
+
+    confirm_button.callback = confirm_button_callback
+    view = View()
+    view.add_item(form_button)
+    view.add_item(confirm_button)
+
+    await ctx.send_followup(
+        content="Please click the form button to go to the TNG membership form,"
+                + " and then click \"Confirm\" once you have completed it",
+        view=view
+    )
 
 
 bot.run(TOKEN)
