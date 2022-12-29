@@ -4,7 +4,7 @@ from discord import SelectOption
 from datetime import datetime
 
 # from config_example import TOKEN
-from config import TOKEN, ADMIN_USER_ID
+from config import TOKEN, ADMIN_USER_ID, GROUP_NAME, GROUP_FORM_URL
 
 
 async def get_future_event_selectmenu(ctx: discord.ApplicationContext):
@@ -159,7 +159,7 @@ async def join_server(ctx: discord.ApplicationContext):
 
     form_button = Button(
         label="Go to membership form",
-        url="https://google.com"
+        url=GROUP_FORM_URL
     )
     confirm_button = Button(label="Confirm")
 
@@ -209,7 +209,7 @@ async def join_server(ctx: discord.ApplicationContext):
     view.add_item(confirm_button)
 
     await ctx.send_followup(
-        content="Please click the form button to go to the TNG membership form,"
+        content=f"Please click the form button to go to the {GROUP_NAME} membership form,"
                 + " and then click \"Confirm\" once you have completed it",
         view=view
     )

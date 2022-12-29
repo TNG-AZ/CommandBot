@@ -1,2 +1,4 @@
 TOKEN = ""
 ADMIN_USER_ID = 0
+GROUP_NAME = ""
+GROUP_FORM_URL = ""
