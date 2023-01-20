@@ -184,12 +184,18 @@ async def on_member_join(member: discord.Member):
         async def modal_callback(modal_interaction: discord.Interaction):
             await modal_interaction.response.defer()
             nonlocal modal
+            nonlocal button_interaction
             modal.stop()
 
             await bot.get_channel(RESPONSE_COLLECTOR_CHANNEL_ID).send(
                 f"new Discord membership form for {member.mention}\n"
                 + "\n".join(
                     [f"{index}:{child.value}" for index, child in enumerate(modal.children) if len(child.value) > 0]))
+            await button_interaction.message.edit(
+                content="Your form response has been received. Please wait while a board "
+                        "member verifies your response",
+                view=None
+            )
 
         modal.callback = modal_callback
         return await button_interaction.response.send_modal(modal)
@@ -201,7 +207,7 @@ async def on_member_join(member: discord.Member):
 
     await member.send(
         content=f"Please click the form button to go to the {GROUP_NAME} membership form,"
-                + " and then click \"Confirm\" once you have completed it",
+                " and then click \"Confirm\" once you have completed it",
         view=view
     )
 
