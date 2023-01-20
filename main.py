@@ -4,7 +4,7 @@ from discord import SelectOption
 from datetime import datetime
 
 # from config_example import TOKEN
-from config import TOKEN, ADMIN_USER_ID, GROUP_NAME, GROUP_FORM_URL
+from config import TOKEN, ADMIN_USER_ID, GROUP_NAME, GROUP_FORM_URL, RESPONSE_COLLECTOR_CHANNEL_ID
 
 
 async def get_future_event_selectmenu(ctx: discord.ApplicationContext):
@@ -152,9 +152,8 @@ message:{message}"""
     await ctx.send_followup("", view=view)
 
 
-@bot.slash_command(name="join")
-async def join_server(ctx: discord.ApplicationContext):
-    await ctx.response.defer()
+@bot.event
+async def on_member_join(member: discord.Member):
     await bot.wait_until_ready()
 
     form_button = Button(
@@ -164,11 +163,6 @@ async def join_server(ctx: discord.ApplicationContext):
     confirm_button = Button(label="Confirm")
 
     async def confirm_button_callback(button_interaction: discord.Interaction):
-        if button_interaction.user != ctx.author:
-            return
-
-        await button_interaction.message.delete()
-
         modal = discord.ui.Modal(
             title="Discord New User Form")
         modal.add_item(discord.ui.InputText(
@@ -192,27 +186,32 @@ async def join_server(ctx: discord.ApplicationContext):
             nonlocal modal
             modal.stop()
 
-            await bot.get_user(ADMIN_USER_ID).send(
-                f"new Discord membership form for {ctx.author.mention}\n"
-                + "\n".join([f"{index}:{child.value}" for index, child in enumerate(modal.children) if len(child.value) > 0]))
-
-            return await ctx.send(
-                f"Received Discord new user form for {modal_interaction.user.mention}"
-            )
+            await bot.get_channel(RESPONSE_COLLECTOR_CHANNEL_ID).send(
+                f"new Discord membership form for {member.mention}\n"
+                + "\n".join(
+                    [f"{index}:{child.value}" for index, child in enumerate(modal.children) if len(child.value) > 0]))
 
         modal.callback = modal_callback
         return await button_interaction.response.send_modal(modal)
 
     confirm_button.callback = confirm_button_callback
-    view = View()
+    view = View(timeout=None)
     view.add_item(form_button)
     view.add_item(confirm_button)
 
-    await ctx.send_followup(
+    await member.send(
         content=f"Please click the form button to go to the {GROUP_NAME} membership form,"
                 + " and then click \"Confirm\" once you have completed it",
         view=view
     )
 
+
+@bot.slash_command(name="join")
+async def join_server(ctx: discord.ApplicationContext):
+    await on_member_join(ctx.author)
+    return await ctx.respond(
+        "Check your DMs for instructions on joining the Discord server",
+        delete_after=0 if ctx.channel.type == discord.ChannelType.private else 30
+    )
 
 bot.run(TOKEN)
