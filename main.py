@@ -127,12 +127,12 @@ message:{message}"""
                     if message_type == "DM":
                         for sub in subscribers:
                             await sub.send(message)
-                        return await interaction.message.edit(view=sent_button_view)
+                        return await interaction.edit_original_response(view=sent_button_view)
                     else:
                         message_with_tag = ", ".join([sub.mention for sub in subscribers])
                         message_with_tag += "\n\n"
                         message_with_tag += message
-                        await interaction.message.edit(view=sent_button_view)
+                        await interaction.edit_original_response(view=sent_button_view)
                         return await channel.send(message_with_tag) if channel else await ctx.send(message_with_tag)
 
                 confirm_button.callback = confirm_callback
@@ -141,11 +141,11 @@ message:{message}"""
 
             modal.callback = modal_callback
             await interaction.response.send_modal(modal)
-            return await interaction.message.delete()
+            return await interaction.delete_original_response()
 
         message_options.callback = message_option_callback
         view = View(message_options)
-        return await interaction.message.edit(view=view)
+        return await interaction.edit_original_response(view=view)
 
     event_options.callback = event_select_callback
     view = View(event_options)
