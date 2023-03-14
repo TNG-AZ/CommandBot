@@ -1,10 +1,11 @@
-import discord
-from discord.ui import Select, View, Button
-from discord import SelectOption
 from datetime import datetime
 
+import discord
+from discord import SelectOption
+from discord.ui import Select, View, Button
+
 # from config_example import TOKEN
-from config import TOKEN, ADMIN_USER_ID, GROUP_NAME, GROUP_FORM_URL, RESPONSE_COLLECTOR_CHANNEL_ID
+from config import TOKEN, GROUP_NAME, GROUP_FORM_URL, RESPONSE_COLLECTOR_CHANNEL_ID, MEMBER_ROLES_MESSAGES
 
 
 async def get_future_event_selectmenu(ctx: discord.ApplicationContext):
@@ -219,5 +220,24 @@ async def join_server(ctx: discord.ApplicationContext):
         "Check your DMs for instructions on joining the Discord server",
         delete_after=0 if ctx.channel.type == discord.ChannelType.private else 30
     )
+
+@bot.slash_command(name="get_ids")
+async def get_member_ids(ctx: discord.ApplicationContext):
+    if not ctx.interaction.permissions.moderate_members:
+        return await ctx.send_followup("https://www.youtube.com/watch?v=RfiQYRn7fBg")
+
+    with open("members.txt", "w", encoding="utf-8") as file:
+        for member in ctx.guild.members:
+            file.write(member.name + ', ' + (member.nick or member.name) + ', ' + str(member.id) + "\n")
+    with open("members.txt", "rb") as file:
+        await ctx.send("Your file is:", file=discord.File(file, "members.txt"))
+
+@bot.event
+async def on_member_update(before: discord.Member, after: discord.Member):
+    if len(before.roles) < len(after.roles):
+        new_role = next(role for role in after.roles if role not in before.roles)
+        message = MEMBER_ROLES_MESSAGES.get(new_role.id)
+        if message:
+            await before.send(message)
 
 bot.run(TOKEN)
