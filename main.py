@@ -167,7 +167,7 @@ async def on_member_join(member: discord.Member):
         modal = discord.ui.Modal(
             title="Discord New User Form")
         modal.add_item(discord.ui.InputText(
-            label="FetLife username",
+            label="Scene Name",
             required=False,
             style=discord.InputTextStyle.short)
         )
