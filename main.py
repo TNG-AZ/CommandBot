@@ -46,6 +46,9 @@ bot = discord.Bot(
 @bot.slash_command(name="getcurrentmembers")
 async def current_members(ctx: discord.ApplicationContext):
     await ctx.response.defer()
+
+    if not ctx.interaction.permissions.manage_roles:
+        return await ctx.send_followup("https://www.youtube.com/watch?v=RfiQYRn7fBg")
     to_update = 0
     to_send = ""
     current_member_ids = json.load(urllib.request.urlopen("https://tngaz.org/api/discord/current?apiKey="+TNGAZ_API_KEY))
