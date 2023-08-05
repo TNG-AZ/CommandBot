@@ -65,6 +65,57 @@ async def current_members(ctx: discord.ApplicationContext):
                 to_update += 1
     await ctx.send_followup(to_send + "\r\n\r\n\r\n" + str(to_update) + " left to update")
 
+@bot.slash_command(name="getlapsedmembers")
+async def lapsed_members(ctx: discord.ApplicationContext):
+    await ctx.response.defer()
+
+    if not ctx.interaction.permissions.manage_roles:
+        return await ctx.send_followup("https://www.youtube.com/watch?v=RfiQYRn7fBg")
+    to_update = 0
+    to_send = ""
+    current_member_ids = json.load(urllib.request.urlopen("https://tngaz.org/api/discord/lapsed?apiKey="+TNGAZ_API_KEY))
+    for memberId in current_member_ids:
+        member = ctx.guild.get_member(memberId)
+        if member:
+            roles = set([r.id for r in member.roles])
+            is_member = len((roles & set(MEMBER_ROLES))) > 0
+            if is_member:
+                if len(to_send) == 0:
+                    to_send = member.mention
+                else:
+                    to_send += "\r\n" + member.mention
+                if is_member:
+                    to_update += 1
+                if len(to_send) > 1000:
+                    await ctx.send_followup(to_send)
+                    to_send = ""
+    await ctx.send_followup(to_send + "\r\n\r\n\r\n" + str(to_update) + " left to update")
+
+@bot.slash_command(name="getagedoutmembers")
+async def aged_out_members(ctx: discord.ApplicationContext):
+    await ctx.response.defer()
+
+    if not ctx.interaction.permissions.manage_roles:
+        return await ctx.send_followup("https://www.youtube.com/watch?v=RfiQYRn7fBg")
+    to_update = 0
+    to_send = ""
+    current_member_ids = json.load(urllib.request.urlopen("https://tngaz.org/api/discord/aged?apiKey="+TNGAZ_API_KEY))
+    for memberId in current_member_ids:
+        member = ctx.guild.get_member(memberId)
+        if member:
+            roles = set([r.id for r in member.roles])
+            is_member = len((roles & set(MEMBER_ROLES))) > 0
+            if is_member:
+                if len(to_send) == 0:
+                    to_send = member.mention
+                else:
+                    to_send += "\r\n" + member.mention
+                if is_member:
+                    to_update += 1
+                if len(to_send) > 1000:
+                    await ctx.send_followup(to_send)
+                    to_send = ""
+    await ctx.send_followup(to_send + "\r\n\r\n\r\n" + str(to_update) + " left to update")
 
 @bot.slash_command(name="eventdm")
 async def event_dm(
