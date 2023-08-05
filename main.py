@@ -63,7 +63,7 @@ async def current_members(ctx: discord.ApplicationContext):
                 to_send += "\r\n" + member.mention + "     " + ("Good" if is_member else "Needs to be updated")
             if is_member:
                 to_update += 1
-    await ctx.send_response(to_send + "\r\n\r\n\r\n" + str(to_update) + " left to update")
+    await ctx.send_followup(to_send + "\r\n\r\n\r\n" + str(to_update) + " left to update")
 
 
 @bot.slash_command(name="eventdm")
