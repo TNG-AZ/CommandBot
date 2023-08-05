@@ -6,3 +6,7 @@ RESPONSE_COLLECTOR_CHANNEL_ID = 0
 MEMBER_ROLES_MESSAGES = {
     0: "Welcome to the role"
 }
+MEMBER_ROLES = [
+    0
+]
+TNGAZ_API_KEY = "foo"

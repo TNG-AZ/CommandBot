@@ -1,11 +1,13 @@
 from datetime import datetime
+import urllib.request
+import json
 
 import discord
 from discord import SelectOption
 from discord.ui import Select, View, Button
 
 # from config_example import TOKEN
-from config import TOKEN, GROUP_NAME, GROUP_FORM_URL, RESPONSE_COLLECTOR_CHANNEL_ID, MEMBER_ROLES_MESSAGES
+from config import TOKEN, GROUP_NAME, GROUP_FORM_URL, RESPONSE_COLLECTOR_CHANNEL_ID, MEMBER_ROLES_MESSAGES, TNGAZ_API_KEY, MEMBER_ROLES
 
 
 async def get_future_event_selectmenu(ctx: discord.ApplicationContext):
@@ -40,6 +42,22 @@ intents.guilds = True
 bot = discord.Bot(
     intents=intents,
 )
+
+@bot.slash_command(name="getcurrentmembers")
+async def current_members(ctx: discord.ApplicationContext):
+    await ctx.response.defer()
+    to_update = 0
+    current_member_ids = json.load(urllib.request.urlopen("https://tngaz.org/api/discord/current?apiKey="+TNGAZ_API_KEY))
+    for memberId in current_member_ids:
+        member = ctx.guild.get_member(memberId)
+        if member:
+            roles = set([r.id for r in member.roles])
+            is_member = len((roles & set(MEMBER_ROLES))) > 0
+            await ctx.send(member.mention + "     " + ("Good" if is_member else "Needs to be updated"))
+            if is_member:
+                to_update += 1
+
+    await ctx.send_response(str(to_update) + " left to update")
 
 
 @bot.slash_command(name="eventdm")
