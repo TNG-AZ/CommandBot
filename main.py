@@ -47,17 +47,20 @@ bot = discord.Bot(
 async def current_members(ctx: discord.ApplicationContext):
     await ctx.response.defer()
     to_update = 0
+    to_send = ""
     current_member_ids = json.load(urllib.request.urlopen("https://tngaz.org/api/discord/current?apiKey="+TNGAZ_API_KEY))
     for memberId in current_member_ids:
         member = ctx.guild.get_member(memberId)
         if member:
             roles = set([r.id for r in member.roles])
             is_member = len((roles & set(MEMBER_ROLES))) > 0
-            await ctx.send(member.mention + "     " + ("Good" if is_member else "Needs to be updated"))
+            if len(to_send) == 0:
+                to_send = member.mention + "     " + ("Good" if is_member else "Needs to be updated")
+            else:
+                to_send += "\r\n" + member.mention + "     " + ("Good" if is_member else "Needs to be updated")
             if is_member:
                 to_update += 1
-
-    await ctx.send_response(str(to_update) + " left to update")
+    await ctx.send_response(to_send + "\r\n\r\n\r\n" + str(to_update) + " left to update")
 
 
 @bot.slash_command(name="eventdm")
