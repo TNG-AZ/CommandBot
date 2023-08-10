@@ -53,7 +53,7 @@ async def on_ready():
     poll_events.start()
 
 
-@tasks.loop(hours=1)
+@tasks.loop(hours=12)
 async def poll_events():
     events = google_calendar.get_events(10)
     guild = bot.guilds[0]
