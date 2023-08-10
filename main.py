@@ -1,13 +1,18 @@
 from datetime import datetime
 import urllib.request
 import json
+from markdownify import markdownify
 
 import discord
 from discord import SelectOption
 from discord.ui import Select, View, Button
+from discord.ext import tasks
+
+import google_calendar
 
 # from config_example import TOKEN
-from config import TOKEN, GROUP_NAME, GROUP_FORM_URL, RESPONSE_COLLECTOR_CHANNEL_ID, MEMBER_ROLES_MESSAGES, TNGAZ_API_KEY, MEMBER_ROLES
+from config import TOKEN, GROUP_NAME, GROUP_FORM_URL, RESPONSE_COLLECTOR_CHANNEL_ID, MEMBER_ROLES_MESSAGES, \
+    TNGAZ_API_KEY, MEMBER_ROLES
 
 
 async def get_future_event_selectmenu(ctx: discord.ApplicationContext):
@@ -43,6 +48,70 @@ bot = discord.Bot(
     intents=intents,
 )
 
+@bot.event
+async def on_ready():
+    poll_events.start()
+
+
+@tasks.loop(hours=1)
+async def poll_events():
+    events = google_calendar.get_events(10)
+    guild = bot.guilds[0]
+    channel = bot.get_channel(RESPONSE_COLLECTOR_CHANNEL_ID)
+    if not events:
+        print('No upcoming events found.')
+        return
+    discord_events = guild.scheduled_events
+
+    await channel.send(await update_events(guild, events, discord_events))
+
+
+async def update_events(guild: discord.Guild, events: dict, discord_events):
+    updated = 0
+    inserted = 0
+    # Prints the start and name of the next 10 events
+    for event in events:
+        start = event['start'].get('dateTime', event['start'].get('date'))
+        description = markdownify(event['description'])[:min(1000, len(event['description']))]
+        matching_discord_events = [e for e in discord_events if
+                                   e.start_time.timestamp() == datetime.fromisoformat(start).timestamp() and e.name ==
+                                   event['summary']]
+        if len(matching_discord_events) > 0:
+            if matching_discord_events[0].description != description:
+                await matching_discord_events[0].edit(
+                    description=description
+                )
+                updated += 1
+        else:
+            location = event.get('location', "")
+            await guild.create_scheduled_event(
+                name=event['summary'],
+                description=description,
+                start_time=datetime.fromisoformat(event['start'].get('dateTime', event['start'].get('date'))),
+                end_time=datetime.fromisoformat(event['end'].get('dateTime', event['start'].get('date'))),
+                location=location)
+            inserted += 1
+    return f"updated:{updated}, inserted:{inserted}"
+
+@bot.slash_command(name="generate_events")
+async def generate_events(
+        ctx: discord.ApplicationContext,
+        pull_count: int
+):
+    await ctx.response.defer()
+    if not ctx.interaction.permissions.manage_events:
+        return await ctx.send_followup("https://www.youtube.com/watch?v=RfiQYRn7fBg")
+
+    events = google_calendar.get_events(pull_count)
+    if not events:
+        print('No upcoming events found.')
+        return
+    discord_events = ctx.guild.scheduled_events
+
+    await ctx.send_followup(await update_events(ctx.guild, events, discord_events))
+
+
+
 @bot.slash_command(name="getcurrentmembers")
 async def current_members(ctx: discord.ApplicationContext):
     await ctx.response.defer()
@@ -51,7 +120,8 @@ async def current_members(ctx: discord.ApplicationContext):
         return await ctx.send_followup("https://www.youtube.com/watch?v=RfiQYRn7fBg")
     to_update = 0
     to_send = ""
-    current_member_ids = json.load(urllib.request.urlopen("https://tngaz.org/api/discord/current?apiKey="+TNGAZ_API_KEY))
+    current_member_ids = json.load(
+        urllib.request.urlopen("https://tngaz.org/api/discord/current?apiKey=" + TNGAZ_API_KEY))
     for memberId in current_member_ids:
         member = ctx.guild.get_member(memberId)
         if member:
@@ -65,6 +135,7 @@ async def current_members(ctx: discord.ApplicationContext):
                 to_update += 1
     await ctx.send_followup(to_send + "\r\n\r\n\r\n" + str(to_update) + " left to update")
 
+
 @bot.slash_command(name="getlapsedmembers")
 async def lapsed_members(ctx: discord.ApplicationContext):
     await ctx.response.defer()
@@ -73,7 +144,8 @@ async def lapsed_members(ctx: discord.ApplicationContext):
         return await ctx.send_followup("https://www.youtube.com/watch?v=RfiQYRn7fBg")
     to_update = 0
     to_send = ""
-    current_member_ids = json.load(urllib.request.urlopen("https://tngaz.org/api/discord/lapsed?apiKey="+TNGAZ_API_KEY))
+    current_member_ids = json.load(
+        urllib.request.urlopen("https://tngaz.org/api/discord/lapsed?apiKey=" + TNGAZ_API_KEY))
     for memberId in current_member_ids:
         member = ctx.guild.get_member(memberId)
         if member:
@@ -90,6 +162,7 @@ async def lapsed_members(ctx: discord.ApplicationContext):
                     await ctx.send_followup(to_send)
                     to_send = ""
     await ctx.send_followup(to_send + "\r\n\r\n\r\n" + str(to_update) + " left to update")
+
 
 @bot.slash_command(name="getagedoutmembers")
 async def aged_out_members(ctx: discord.ApplicationContext):
@@ -99,7 +172,7 @@ async def aged_out_members(ctx: discord.ApplicationContext):
         return await ctx.send_followup("https://www.youtube.com/watch?v=RfiQYRn7fBg")
     to_update = 0
     to_send = ""
-    current_member_ids = json.load(urllib.request.urlopen("https://tngaz.org/api/discord/aged?apiKey="+TNGAZ_API_KEY))
+    current_member_ids = json.load(urllib.request.urlopen("https://tngaz.org/api/discord/aged?apiKey=" + TNGAZ_API_KEY))
     for memberId in current_member_ids:
         member = ctx.guild.get_member(memberId)
         if member:
@@ -116,6 +189,7 @@ async def aged_out_members(ctx: discord.ApplicationContext):
                     await ctx.send_followup(to_send)
                     to_send = ""
     await ctx.send_followup(to_send + "\r\n\r\n\r\n" + str(to_update) + " left to update")
+
 
 @bot.slash_command(name="eventdm")
 async def event_dm(
@@ -296,6 +370,7 @@ async def join_server(ctx: discord.ApplicationContext):
         delete_after=0 if ctx.channel.type == discord.ChannelType.private else 30
     )
 
+
 @bot.slash_command(name="get_ids")
 async def get_member_ids(ctx: discord.ApplicationContext):
     if not ctx.interaction.permissions.moderate_members:
@@ -307,6 +382,7 @@ async def get_member_ids(ctx: discord.ApplicationContext):
     with open("members.txt", "rb") as file:
         await ctx.send("Your file is:", file=discord.File(file, "members.txt"))
 
+
 @bot.event
 async def on_member_update(before: discord.Member, after: discord.Member):
     if len(before.roles) < len(after.roles):
@@ -314,5 +390,6 @@ async def on_member_update(before: discord.Member, after: discord.Member):
         message = MEMBER_ROLES_MESSAGES.get(new_role.id)
         if message:
             await before.send(message)
+
 
 bot.run(TOKEN)
