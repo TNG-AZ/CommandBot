@@ -1,4 +1,5 @@
 from datetime import datetime
+import datetime as dt
 import urllib.request
 import json
 from markdownify import markdownify
@@ -48,12 +49,21 @@ bot = discord.Bot(
     intents=intents,
 )
 
+
 @bot.event
 async def on_ready():
     poll_events.start()
+    
+
+times = [
+    dt.time(hour=0),
+    dt.time(hour=6),
+    dt.time(hour=12),
+    dt.time(hour=18)
+]
 
 
-@tasks.loop(hours=12)
+@tasks.loop(time=times)
 async def poll_events():
     events = google_calendar.get_events(10)
     guild = bot.guilds[0]
