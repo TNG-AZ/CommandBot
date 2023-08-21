@@ -53,7 +53,7 @@ bot = discord.Bot(
 @bot.event
 async def on_ready():
     poll_events.start()
-    
+
 
 times = [
     dt.time(hour=0),
@@ -73,7 +73,9 @@ async def poll_events():
         return
     discord_events = guild.scheduled_events
 
-    await channel.send(await update_events(guild, events, discord_events))
+    update_string = await update_events(guild, events, discord_events)
+    if update_string:
+        await channel.send(update_string)
 
 
 async def update_events(guild: discord.Guild, events: dict, discord_events):
@@ -82,12 +84,12 @@ async def update_events(guild: discord.Guild, events: dict, discord_events):
     # Prints the start and name of the next 10 events
     for event in events:
         start = event['start'].get('dateTime', event['start'].get('date'))
-        description = markdownify(event['description'])[:min(1000, len(event['description']))]
+        description = markdownify(event['description'])[:min(1000, len(event['description']))].strip()
         matching_discord_events = [e for e in discord_events if
                                    e.start_time.timestamp() == datetime.fromisoformat(start).timestamp() and e.name ==
                                    event['summary']]
         if len(matching_discord_events) > 0:
-            if matching_discord_events[0].description != description:
+            if matching_discord_events[0].description.strip() != description:
                 await matching_discord_events[0].edit(
                     description=description
                 )
@@ -101,7 +103,7 @@ async def update_events(guild: discord.Guild, events: dict, discord_events):
                 end_time=datetime.fromisoformat(event['end'].get('dateTime', event['start'].get('date'))),
                 location=location)
             inserted += 1
-    return f"updated:{updated}, inserted:{inserted}"
+    return f"updated:{updated}, inserted:{inserted}" if updated + inserted > 0 else None
 
 @bot.slash_command(name="generate_events")
 async def generate_events(
@@ -118,7 +120,8 @@ async def generate_events(
         return
     discord_events = ctx.guild.scheduled_events
 
-    await ctx.send_followup(await update_events(ctx.guild, events, discord_events))
+    update_string = await update_events(ctx.guild, events, discord_events)
+    await ctx.send_followup(update_string if update_string else "No change")
 
 
 
