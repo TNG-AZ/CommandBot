@@ -86,8 +86,8 @@ async def update_events(guild: discord.Guild, events: dict, discord_events):
         start = event['start'].get('dateTime', event['start'].get('date'))
         description = markdownify(event['description'])[:min(1000, len(event['description']))].strip()
         matching_discord_events = [e for e in discord_events if
-                                   e.start_time.timestamp() == datetime.fromisoformat(start).timestamp() and e.name ==
-                                   event['summary']]
+                                   e.start_time.timestamp() == datetime.fromisoformat(start).timestamp()
+                                   and e.name.strip() == event['summary'].strip()]
         if len(matching_discord_events) > 0:
             if matching_discord_events[0].description.strip() != description:
                 await matching_discord_events[0].edit(
