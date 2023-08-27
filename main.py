@@ -13,7 +13,7 @@ import google_calendar
 
 # from config_example import TOKEN
 from config import TOKEN, GROUP_NAME, GROUP_FORM_URL, RESPONSE_COLLECTOR_CHANNEL_ID, MEMBER_ROLES_MESSAGES, \
-    TNGAZ_API_KEY, MEMBER_ROLES
+    TNGAZ_API_KEY, MEMBER_ROLES, THREAD_CHANNEL_IDS
 
 
 async def get_future_event_selectmenu(ctx: discord.ApplicationContext):
@@ -45,10 +45,16 @@ intents = discord.Intents.none()
 intents.scheduled_events = True
 intents.members = True
 intents.guilds = True
+intents.messages = True
 bot = discord.Bot(
     intents=intents,
 )
 
+
+@bot.event
+async def on_message(message: discord.Message):
+    if message.channel.id in THREAD_CHANNEL_IDS:
+        await message.create_thread(name="autothread")
 
 @bot.event
 async def on_ready():
