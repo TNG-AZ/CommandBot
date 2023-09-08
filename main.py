@@ -3,6 +3,7 @@ import datetime as dt
 import urllib.request
 import json
 from markdownify import markdownify
+import time
 
 import discord
 from discord import SelectOption
@@ -54,7 +55,9 @@ bot = discord.Bot(
 @bot.event
 async def on_message(message: discord.Message):
     if message.channel.id in THREAD_CHANNEL_IDS:
-        await message.create_thread(name="autothread")
+        thread_date = int(time.time())
+        thread_name = f"{message.author.nick} - {thread_date}"
+        await message.create_thread(name=thread_name)
 
 @bot.event
 async def on_ready():
