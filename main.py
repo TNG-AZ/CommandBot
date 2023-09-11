@@ -56,8 +56,7 @@ bot = discord.Bot(
 async def on_message(message: discord.Message):
     if message.channel.id in THREAD_CHANNEL_IDS:
         thread_date = int(time.time())
-        author = message.author.nick if message.author.nick else message.author.name
-        thread_name = f"{author} - {thread_date}"
+        thread_name = f"{message.author.display_name} - {thread_date}"
         await message.create_thread(name=thread_name)
 
 @bot.event
