@@ -87,7 +87,7 @@ async def poll_events():
         await channel.send(update_string)
 
 
-async def update_events(guild: discord.Guild, events: dict, discord_events):
+async def update_events(guild: discord.Guild, events, discord_events):
     updated = 0
     inserted = 0
     # Prints the start and name of the next 10 events
