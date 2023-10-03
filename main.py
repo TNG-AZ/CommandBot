@@ -59,6 +59,7 @@ async def on_message(message: discord.Message):
         thread_name = f"{message.author.display_name} - {thread_date}"
         await message.create_thread(name=thread_name)
 
+
 @bot.event
 async def on_ready():
     poll_events.start()
@@ -114,6 +115,7 @@ async def update_events(guild: discord.Guild, events, discord_events):
             inserted += 1
     return f"updated:{updated}, inserted:{inserted}" if updated + inserted > 0 else None
 
+
 @bot.slash_command(name="generate_events")
 async def generate_events(
         ctx: discord.ApplicationContext,
@@ -132,6 +134,38 @@ async def generate_events(
     update_string = await update_events(ctx.guild, events, discord_events)
     await ctx.send_followup(update_string if update_string else "No change")
 
+
+@bot.slash_command(name="messagecountaudit")
+async def message_count_audit(ctx: discord.ApplicationContext, history_count: int, message_count: int):
+    await ctx.response.defer()
+    if message_count < 1:
+        return await ctx.send_followup("Cannot check for <= 0 messages")
+    if history_count < 1:
+        history_count = 100
+    audited_users = []
+    audit_channel = bot.get_channel(RESPONSE_COLLECTOR_CHANNEL_ID)
+    messages = await ctx.channel.history(limit=history_count).flatten()
+    for user in ctx.channel.members:
+        user_messages = [m for m in messages if m.author.id == user.id]
+        if len(user_messages) < message_count:
+            audited_users.append(user)
+    await audit_channel.send(f"Users who have not sent {message_count} messages out of the last "
+                             + f"{history_count} "
+                             + f"in the channel {ctx.channel.name}:")
+    if len(audited_users) > 0:
+        to_send = ""
+        for user in audited_users:
+            if len(to_send) == 0:
+                to_send = user.mention
+            else:
+                to_send += "\r\n" + user.mention
+            if len(to_send) > 1000:
+                await audit_channel.send(to_send)
+                to_send = ""
+        await audit_channel.send(to_send)
+    else:
+        await audit_channel.send("No users have sent less than N messages")
+    await ctx.send_followup("Check audit channel for results")
 
 
 @bot.slash_command(name="getcurrentmembers")
