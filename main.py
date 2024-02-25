@@ -247,6 +247,29 @@ async def aged_out_members(ctx: discord.ApplicationContext):
     await ctx.send_followup(to_send + "\r\n\r\n\r\n" + str(to_update) + " left to update")
 
 
+@bot.slash_command(name="getattendedmembers")
+async def attended_members(ctx: discord.ApplicationContext,
+                           calendar_id):
+    await ctx.response.defer()
+
+    if not ctx.interaction.permissions.manage_roles:
+        return await ctx.send_followup("https://www.youtube.com/watch?v=RfiQYRn7fBg")
+    to_send = ""
+    current_member_ids = json.load(urllib.request.urlopen(
+        f"https://tngaz.org/api/discord/attended?apiKey={TNGAZ_API_KEY}&calendarId={calendar_id}")
+    )
+    for memberId in current_member_ids:
+        member = ctx.guild.get_member(memberId)
+        if member:
+            if len(to_send) == 0:
+                to_send = member.mention
+            else:
+                to_send += "\r\n" + member.mention
+            if len(to_send) > 1000:
+                await ctx.send_followup(to_send)
+                to_send = ""
+    await ctx.send_followup(to_send)
+
 @bot.slash_command(name="eventdm")
 async def event_dm(
         ctx: discord.ApplicationContext,
