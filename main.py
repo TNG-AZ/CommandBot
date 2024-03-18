@@ -396,7 +396,12 @@ async def on_member_join(member: discord.Member):
             title="Discord New User Form")
         modal.add_item(discord.ui.InputText(
             label="Scene Name",
-            required=False,
+            required=True,
+            style=discord.InputTextStyle.short)
+        )
+        modal.add_item(discord.ui.InputText(
+            label="I am 18 years of age or older: (YES/NO)",
+            required=True,
             style=discord.InputTextStyle.short)
         )
         modal.add_item(discord.ui.InputText(
