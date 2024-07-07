@@ -14,7 +14,7 @@ import google_calendar
 
 # from config_example import TOKEN
 from config import TOKEN, GROUP_NAME, GROUP_FORM_URL, RESPONSE_COLLECTOR_CHANNEL_ID, MEMBER_ROLES_MESSAGES, \
-    TNGAZ_API_KEY, MEMBER_ROLES, THREAD_CHANNEL_IDS
+    TNGAZ_API_KEY, MEMBER_ROLES, THREAD_CHANNEL_IDS, GUILD_ID
 
 
 async def get_future_event_selectmenu(ctx: discord.ApplicationContext):
@@ -76,7 +76,11 @@ times = [
 @tasks.loop(time=times)
 async def poll_events():
     events = google_calendar.get_events(10)
-    guild = bot.guilds[0]
+    for g in bot.guilds:
+        if g.id == GUILD_ID:
+            guild = g
+            break
+    guild = guild or bot.guilds[0]
     channel = bot.get_channel(RESPONSE_COLLECTOR_CHANNEL_ID)
     if not events:
         print('No upcoming events found.')

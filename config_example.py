@@ -13,3 +13,4 @@ MEMBER_ROLES = [
     0
 ]
 TNGAZ_API_KEY = "foo"
+GUILD_ID = 0
