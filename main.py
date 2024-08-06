@@ -361,8 +361,9 @@ message:{message}"""
                         for sub in subscribers:
                             try:
                                 await sub.send(message)
-                            except:
+                            except Exception as e:
                                 await ctx.send("failed to send message to " + sub.name)
+                                await ctx.send(str(e))
                         return await interaction.edit_original_response(view=sent_button_view)
                     else:
                         message_with_tag = ", ".join([sub.mention for sub in subscribers])
