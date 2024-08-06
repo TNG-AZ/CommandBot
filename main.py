@@ -359,7 +359,10 @@ message:{message}"""
 
                     if message_type == "DM":
                         for sub in subscribers:
-                            await sub.send(message)
+                            try:
+                                await sub.send(message)
+                            except:
+                                await ctx.send("failed to send message to " + sub.name)
                         return await interaction.edit_original_response(view=sent_button_view)
                     else:
                         message_with_tag = ", ".join([sub.mention for sub in subscribers])
