@@ -95,21 +95,40 @@ async def poll_events():
 async def update_events(guild: discord.Guild, events, discord_events):
     updated = 0
     inserted = 0
+    duplicates_removed = 0
     # Prints the start and name of the next 10 events
     for event in events:
         start = event['start'].get('dateTime', event['start'].get('date'))
-        description = markdownify(event['description'])[:min(1000, len(event['description']))].strip()
+        # Skip all-day events
+        if datetime.fromisoformat(start).tzinfo is None:
+            continue
+
+        # This is mostly for debugging because all events *should* have a description, but some of mine don't
+        description = None
+        if "description" in event:
+            description = markdownify(event['description'])[:min(1000, len(event['description']))].strip()
+        else:
+            description = ""
+
+
         matching_discord_events = [e for e in discord_events if
                                    e.start_time - datetime.fromisoformat(start) == timedelta(0)
                                    and e.name.strip() == event['summary'].strip()]
         if len(matching_discord_events) > 0:
+            # Remove duplicate events
+            if len(matching_discord_events) > 1:
+                for i in range(1, len(matching_discord_events)):
+                    e = matching_discord_events[i]
+                    await e.delete()
+                    duplicates_removed += 1
             if matching_discord_events[0].description.strip() != description:
                 await matching_discord_events[0].edit(
                     description=description
                 )
                 updated += 1
         else:
-            location = event.get('location', "")
+            # The [:100] is also for debugging because it's possible for a location to have more than 100 characters
+            location = event.get('location', "")[:100]
             await guild.create_scheduled_event(
                 name=event['summary'],
                 description=description,
@@ -117,7 +136,7 @@ async def update_events(guild: discord.Guild, events, discord_events):
                 end_time=datetime.fromisoformat(event['end'].get('dateTime', event['start'].get('date'))),
                 location=location)
             inserted += 1
-    return f"updated:{updated}, inserted:{inserted}" if updated + inserted > 0 else None
+    return f"updated:{updated}, inserted:{inserted}, duplicates removed: {duplicates_removed}" if updated + inserted + duplicates_removed > 0 else None
 
 
 @bot.slash_command(name="generate_events")
