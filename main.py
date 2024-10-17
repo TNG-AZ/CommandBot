@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+import pytz
 import datetime as dt
 import urllib.request
 import json
@@ -98,9 +99,16 @@ async def update_events(guild: discord.Guild, events, discord_events):
     # Prints the start and name of the next 10 events
     for event in events:
         start = event['start'].get('dateTime', event['start'].get('date'))
+        start_dt = datetime.fromisoformat(start)
+        if start_dt.tzinfo is None:
+            start_dt = pytz.timezone('MST').localize(start_dt)
+        end = event['end'].get('dateTime', event['end'].get('date'))
+        end_dt = datetime.fromisoformat(end)
+        if end_dt.tzinfo is None:
+            end_dt = pytz.timezone('MST').localize(end_dt)
         description = markdownify(event['description'])[:min(1000, len(event['description']))].strip()
         matching_discord_events = [e for e in discord_events if
-                                   e.start_time - datetime.fromisoformat(start) == timedelta(0)
+                                   e.start_time - start_dt == timedelta(0)
                                    and e.name.strip() == event['summary'].strip()]
         if len(matching_discord_events) > 0:
             if matching_discord_events[0].description.strip() != description:
@@ -113,8 +121,8 @@ async def update_events(guild: discord.Guild, events, discord_events):
             await guild.create_scheduled_event(
                 name=event['summary'],
                 description=description,
-                start_time=datetime.fromisoformat(event['start'].get('dateTime', event['start'].get('date'))),
-                end_time=datetime.fromisoformat(event['end'].get('dateTime', event['start'].get('date'))),
+                start_time=start_dt,
+                end_time=end_dt,
                 location=location)
             inserted += 1
     return f"updated:{updated}, inserted:{inserted}" if updated + inserted > 0 else None
