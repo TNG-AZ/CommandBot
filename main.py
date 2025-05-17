@@ -121,7 +121,7 @@ async def update_events(guild: discord.Guild, events, discord_events):
         end_dt = datetime.fromisoformat(end)
         if end_dt.tzinfo is None:
             end_dt = pytz.timezone('MST').localize(end_dt)
-        description = markdownify(event['description'])[:min(990, len(event['description']))].strip() + id_hash
+        description = markdownify(event['description'])[:min(989, len(event['description']))].strip() + "\n" + id_hash
         matching_discord_events = [e for e in discord_events if
                                    e.start_time - start_dt == timedelta(0)
                                    and e.name.strip() == event['summary'].strip()]
