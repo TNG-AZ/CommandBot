@@ -5,6 +5,7 @@ import urllib.request
 import json
 from markdownify import markdownify
 import time
+import hashlib
 
 import discord
 from discord import SelectOption
@@ -93,11 +94,25 @@ async def poll_events():
         await channel.send(update_string)
 
 
+def event_exists(id_hash, discord_events):
+    return id_hash in [e.description[-10:] for e in discord_events if len(e.description) >= 10]
+
+
+def get_event_by_id_hash(id_hash, discord_events):
+    event = [e for e in discord_events if len(e.description) >= 10 and e.description.strip()[-10:] == id_hash]
+    if event:
+        return event[0]
+    else:
+        return None
+
 async def update_events(guild: discord.Guild, events, discord_events):
     updated = 0
     inserted = 0
     # Prints the start and name of the next 10 events
     for event in events:
+        id = event['id']
+        id_hash = hashlib.shake_256(str(id).encode()).hexdigest(5)
+
         start = event['start'].get('dateTime', event['start'].get('date'))
         start_dt = datetime.fromisoformat(start)
         if start_dt.tzinfo is None:
@@ -106,13 +121,15 @@ async def update_events(guild: discord.Guild, events, discord_events):
         end_dt = datetime.fromisoformat(end)
         if end_dt.tzinfo is None:
             end_dt = pytz.timezone('MST').localize(end_dt)
-        description = markdownify(event['description'])[:min(1000, len(event['description']))].strip()
+        description = markdownify(event['description'])[:min(990, len(event['description']))].strip() + id_hash
         matching_discord_events = [e for e in discord_events if
                                    e.start_time - start_dt == timedelta(0)
                                    and e.name.strip() == event['summary'].strip()]
-        if len(matching_discord_events) > 0:
-            if matching_discord_events[0].description.strip() != description:
-                await matching_discord_events[0].edit(
+        event_by_id_hash = get_event_by_id_hash(id_hash, discord_events)
+        event = event_by_id_hash or matching_discord_events[0]
+        if event:
+            if event.description.strip() != description:
+                await event.edit(
                     description=description
                 )
                 updated += 1
