@@ -126,10 +126,12 @@ async def update_events(guild: discord.Guild, events, discord_events):
                                    e.start_time - start_dt == timedelta(0)
                                    and e.name.strip() == event['summary'].strip()]
         event_by_id_hash = get_event_by_id_hash(id_hash, discord_events)
-        event = event_by_id_hash or matching_discord_events[0]
-        if event:
-            if event.description.strip() != description:
-                await event.edit(
+        matching_event = event_by_id_hash
+        if not matching_event and matching_discord_events:
+            matching_event = matching_discord_events[0]
+        if matching_event:
+            if matching_event.description.strip() != description:
+                await matching_event.edit(
                     description=description
                 )
                 updated += 1
