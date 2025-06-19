@@ -361,7 +361,7 @@ async def event_dm(
             message_type = message_options.values[0]
 
             modal = discord.ui.Modal(title="RSVP Mailer")
-            modal.add_item(discord.ui.InputText(label="Message to send", style=discord.InputTextStyle.long))
+            modal.add_item(discord.InputText(label="Message to send", style=discord.InputTextStyle.long))
 
             async def modal_callback(interaction: discord.Interaction):
                 nonlocal event_id, message_type, subscribers, modal
@@ -433,25 +433,25 @@ async def on_member_join(member: discord.Member):
     async def confirm_button_callback(button_interaction: discord.Interaction):
         modal = discord.ui.Modal(
             title="Discord New User Form")
-        modal.add_item(discord.ui.InputText(
+        modal.add_item(discord.ui.TextInput(
             label="Scene Name",
             required=True,
-            style=discord.InputTextStyle.short)
+            style=discord.TextStyle.short)
         )
-        modal.add_item(discord.ui.InputText(
+        modal.add_item(discord.ui.TextInput(
             label="I am 18 years of age or older: (YES/NO)",
             required=True,
-            style=discord.InputTextStyle.short)
+            style=discord.TextStyle.short)
         )
-        modal.add_item(discord.ui.InputText(
+        modal.add_item(discord.ui.TextInput(
             label="How did you find us?",
             required=False,
-            style=discord.InputTextStyle.short)
+            style=discord.TextStyle.short)
         )
-        modal.add_item(discord.ui.InputText(
+        modal.add_item(discord.ui.TextInput(
             label="optional: message for approving moderator",
             required=False,
-            style=discord.InputTextStyle.paragraph)
+            style=discord.TextStyle.paragraph)
         )
 
         async def modal_callback(modal_interaction: discord.Interaction):
@@ -470,7 +470,7 @@ async def on_member_join(member: discord.Member):
                 view=None
             )
 
-        modal.callback = modal_callback
+        modal.on_submit = modal_callback
         return await button_interaction.response.send_modal(modal)
 
     confirm_button.callback = confirm_button_callback
@@ -487,11 +487,8 @@ async def on_member_join(member: discord.Member):
 
 @tree.command(name="join")
 async def join_server(ctx):
-    await on_member_join(ctx.author)
-    return await ctx.respond(
-        "Check your DMs for instructions on joining the Discord server",
-        delete_after=0 if ctx.channel.type == discord.ChannelType.private else 30
-    )
+    await ctx.response.defer()
+    await on_member_join(ctx.user)
 
 
 @tree.command(name="get_ids")
