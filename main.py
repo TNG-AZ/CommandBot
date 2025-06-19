@@ -156,7 +156,7 @@ async def generate_events(
         pull_count: int
 ):
     await ctx.response.defer()
-    if False and not ctx.interaction.permissions.manage_events:
+    if not ctx.interaction.permissions.manage_events:
         return await ctx.send_followup("https://www.youtube.com/watch?v=RfiQYRn7fBg")
 
     events = google_calendar.get_events(pull_count)
