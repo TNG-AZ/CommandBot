@@ -208,7 +208,7 @@ async def message_count_audit(ctx, history_count: int, message_count: int):
 async def current_members(ctx):
     await ctx.response.defer()
 
-    if not ctx.interaction.permissions.manage_roles:
+    if not ctx.user.guild_permissions.manage_roles:
         return await ctx.send_followup("https://www.youtube.com/watch?v=RfiQYRn7fBg")
     to_update = 0
     to_send = ""
@@ -232,7 +232,7 @@ async def current_members(ctx):
 async def lapsed_members(ctx):
     await ctx.response.defer()
 
-    if not ctx.interaction.permissions.manage_roles:
+    if not ctx.user.guild_permissions.manage_roles:
         return await ctx.send_followup("https://www.youtube.com/watch?v=RfiQYRn7fBg")
     to_update = 0
     to_send = ""
@@ -260,7 +260,7 @@ async def lapsed_members(ctx):
 async def aged_out_members(ctx):
     await ctx.response.defer()
 
-    if not ctx.interaction.permissions.manage_roles:
+    if not ctx.user.guild_permissions.manage_roles:
         return await ctx.send_followup("https://www.youtube.com/watch?v=RfiQYRn7fBg")
     to_update = 0
     to_send = ""
@@ -288,7 +288,7 @@ async def attended_members(ctx,
                            calendar_id: str):
     await ctx.response.defer()
 
-    if not ctx.interaction.permissions.manage_roles:
+    if not ctx.user.guild_permissions.manage_roles:
         return await ctx.send_followup("https://www.youtube.com/watch?v=RfiQYRn7fBg")
     to_send = ""
     current_member_ids = json.load(urllib.request.urlopen(
@@ -316,7 +316,7 @@ async def event_dm(
     await ctx.response.defer()
     await client.wait_until_ready()
 
-    if not ctx.interaction.permissions.manage_events:
+    if not ctx.user.guild_permissions.manage_events:
         return await ctx.send_followup("https://www.youtube.com/watch?v=RfiQYRn7fBg")
 
     event_options = await get_future_event_selectmenu(ctx)
@@ -495,7 +495,7 @@ async def join_server(ctx):
 
 @tree.command(name="get_ids")
 async def get_member_ids(ctx):
-    if not ctx.interaction.permissions.moderate_members:
+    if not ctx.user.guild_permissions.moderate_members:
         return await ctx.send_followup("https://www.youtube.com/watch?v=RfiQYRn7fBg")
 
     with open("members.txt", "w", encoding="utf-8") as file:
