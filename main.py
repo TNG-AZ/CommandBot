@@ -9,6 +9,7 @@ import hashlib
 
 import discord
 from discord import SelectOption
+from discord import app_commands
 from discord.ui import Select, View, Button
 from discord.ext import tasks
 
@@ -19,7 +20,7 @@ from config import TOKEN, GROUP_NAME, GROUP_FORM_URL, RESPONSE_COLLECTOR_CHANNEL
     TNGAZ_API_KEY, MEMBER_ROLES, THREAD_CHANNEL_IDS, GUILD_ID
 
 
-async def get_future_event_selectmenu(ctx: discord.ApplicationContext):
+async def get_future_event_selectmenu(ctx):
     events = await ctx.guild.fetch_scheduled_events()
     if not events:
         return
@@ -45,26 +46,28 @@ async def get_future_event_selectmenu(ctx: discord.ApplicationContext):
 
 
 intents = discord.Intents.none()
-intents.scheduled_events = True
+intents.guild_scheduled_events = True
 intents.members = True
 intents.guilds = True
 intents.messages = True
-bot = discord.Bot(
-    intents=intents,
-)
 
+client = discord.Client(intents=intents)
+tree = discord.app_commands.CommandTree(client)
 
-@bot.event
+# sync the slash command to your server
+@client.event
+async def on_ready():
+    await tree.sync(guild=discord.Object(id=GUILD_ID))
+    poll_events.start()
+    # print "ready" in the console when the bot is ready to work
+    print("ready")
+
+@client.event
 async def on_message(message: discord.Message):
     if message.channel.id in THREAD_CHANNEL_IDS:
         thread_date = int(time.time())
         thread_name = f"{message.author.display_name} - {thread_date}"
         await message.create_thread(name=thread_name)
-
-
-@bot.event
-async def on_ready():
-    poll_events.start()
 
 
 times = [
@@ -78,12 +81,12 @@ times = [
 @tasks.loop(time=times)
 async def poll_events():
     events = google_calendar.get_events(10)
-    for g in bot.guilds:
+    for g in client.guilds:
         if g.id == GUILD_ID:
             guild = g
             break
-    guild = guild or bot.guilds[0]
-    channel = bot.get_channel(RESPONSE_COLLECTOR_CHANNEL_ID)
+    guild = guild or client.guilds[0]
+    channel = client.get_channel(RESPONSE_COLLECTOR_CHANNEL_ID)
     if not events:
         print('No upcoming events found.')
         return
@@ -147,13 +150,13 @@ async def update_events(guild: discord.Guild, events, discord_events):
     return f"updated:{updated}, inserted:{inserted}" if updated + inserted > 0 else None
 
 
-@bot.slash_command(name="generate_events")
+@tree.command(name="generate_events")
 async def generate_events(
-        ctx: discord.ApplicationContext,
+        ctx,
         pull_count: int
 ):
     await ctx.response.defer()
-    if not ctx.interaction.permissions.manage_events:
+    if False and not ctx.interaction.permissions.manage_events:
         return await ctx.send_followup("https://www.youtube.com/watch?v=RfiQYRn7fBg")
 
     events = google_calendar.get_events(pull_count)
@@ -163,18 +166,18 @@ async def generate_events(
     discord_events = ctx.guild.scheduled_events
 
     update_string = await update_events(ctx.guild, events, discord_events)
-    await ctx.send_followup(update_string if update_string else "No change")
+    await ctx.followup.send(update_string if update_string else "No change")
 
 
-@bot.slash_command(name="messagecountaudit")
-async def message_count_audit(ctx: discord.ApplicationContext, history_count: int, message_count: int):
+@tree.command(name="messagecountaudit")
+async def message_count_audit(ctx, history_count: int, message_count: int):
     await ctx.response.defer()
     if message_count < 1:
         return await ctx.send_followup("Cannot check for <= 0 messages")
     if history_count < 1:
         history_count = 100
     audited_users = []
-    audit_channel = bot.get_channel(RESPONSE_COLLECTOR_CHANNEL_ID)
+    audit_channel = client.get_channel(RESPONSE_COLLECTOR_CHANNEL_ID)
     messages = await ctx.channel.history(limit=history_count).flatten()
     for user in ctx.channel.members:
         user_messages = [m for m in messages if m.author.id == user.id]
@@ -199,8 +202,8 @@ async def message_count_audit(ctx: discord.ApplicationContext, history_count: in
     await ctx.send_followup("Check audit channel for results")
 
 
-@bot.slash_command(name="getcurrentmembers")
-async def current_members(ctx: discord.ApplicationContext):
+@tree.command(name="getcurrentmembers")
+async def current_members(ctx):
     await ctx.response.defer()
 
     if not ctx.interaction.permissions.manage_roles:
@@ -223,8 +226,8 @@ async def current_members(ctx: discord.ApplicationContext):
     await ctx.send_followup(to_send + "\r\n\r\n\r\n" + str(to_update) + " left to update")
 
 
-@bot.slash_command(name="getlapsedmembers")
-async def lapsed_members(ctx: discord.ApplicationContext):
+@tree.command(name="getlapsedmembers")
+async def lapsed_members(ctx):
     await ctx.response.defer()
 
     if not ctx.interaction.permissions.manage_roles:
@@ -251,8 +254,8 @@ async def lapsed_members(ctx: discord.ApplicationContext):
     await ctx.send_followup(to_send + "\r\n\r\n\r\n" + str(to_update) + " left to update")
 
 
-@bot.slash_command(name="getagedoutmembers")
-async def aged_out_members(ctx: discord.ApplicationContext):
+@tree.command(name="getagedoutmembers")
+async def aged_out_members(ctx):
     await ctx.response.defer()
 
     if not ctx.interaction.permissions.manage_roles:
@@ -278,9 +281,9 @@ async def aged_out_members(ctx: discord.ApplicationContext):
     await ctx.send_followup(to_send + "\r\n\r\n\r\n" + str(to_update) + " left to update")
 
 
-@bot.slash_command(name="getattendedmembers")
-async def attended_members(ctx: discord.ApplicationContext,
-                           calendar_id):
+@tree.command(name="getattendedmembers")
+async def attended_members(ctx,
+                           calendar_id: str):
     await ctx.response.defer()
 
     if not ctx.interaction.permissions.manage_roles:
@@ -301,14 +304,15 @@ async def attended_members(ctx: discord.ApplicationContext,
                 to_send = ""
     await ctx.send_followup(to_send)
 
-@bot.slash_command(name="eventdm")
+@tree.command(name="eventdm")
+@app_commands.describe(role ="Who would you like to message?", channel="What channel to send tagged message?")
 async def event_dm(
-        ctx: discord.ApplicationContext,
-        role: discord.Option(discord.Role, "Who would you like to message?", required=False),
-        channel: discord.Option(discord.TextChannel, "What channel to send tagged message?", required=False)
+        ctx: discord.Interaction,
+        role: discord.Role,
+        channel: discord.TextChannel
 ):
     await ctx.response.defer()
-    await bot.wait_until_ready()
+    await client.wait_until_ready()
 
     if not ctx.interaction.permissions.manage_events:
         return await ctx.send_followup("https://www.youtube.com/watch?v=RfiQYRn7fBg")
@@ -330,7 +334,7 @@ async def event_dm(
 
     async def event_select_callback(interaction: discord.Interaction):
         await interaction.response.defer()
-        await bot.wait_until_ready()
+        await client.wait_until_ready()
 
         event_id = event_options.values[0]
         event = await ctx.guild.fetch_scheduled_event(event_id)
@@ -416,9 +420,9 @@ message:{message}"""
     await ctx.send_followup("", view=view)
 
 
-@bot.event
+@client.event
 async def on_member_join(member: discord.Member):
-    await bot.wait_until_ready()
+    await client.wait_until_ready()
 
     form_button = Button(
         label="Go to membership form",
@@ -456,7 +460,7 @@ async def on_member_join(member: discord.Member):
             nonlocal button_interaction
             modal.stop()
 
-            await bot.get_channel(RESPONSE_COLLECTOR_CHANNEL_ID).send(
+            await client.get_channel(RESPONSE_COLLECTOR_CHANNEL_ID).send(
                 f"new Discord membership form for {member.mention}\n"
                 + "\n".join(
                     [f"{index}:{child.value}" for index, child in enumerate(modal.children) if len(child.value) > 0]))
@@ -481,8 +485,8 @@ async def on_member_join(member: discord.Member):
     )
 
 
-@bot.slash_command(name="join")
-async def join_server(ctx: discord.ApplicationContext):
+@tree.command(name="join")
+async def join_server(ctx):
     await on_member_join(ctx.author)
     return await ctx.respond(
         "Check your DMs for instructions on joining the Discord server",
@@ -490,8 +494,8 @@ async def join_server(ctx: discord.ApplicationContext):
     )
 
 
-@bot.slash_command(name="get_ids")
-async def get_member_ids(ctx: discord.ApplicationContext):
+@tree.command(name="get_ids")
+async def get_member_ids(ctx):
     if not ctx.interaction.permissions.moderate_members:
         return await ctx.send_followup("https://www.youtube.com/watch?v=RfiQYRn7fBg")
 
@@ -502,7 +506,7 @@ async def get_member_ids(ctx: discord.ApplicationContext):
         await ctx.send("Your file is:", file=discord.File(file, "members.txt"))
 
 
-@bot.event
+@client.event
 async def on_member_update(before: discord.Member, after: discord.Member):
     if len(before.roles) < len(after.roles):
         new_role = next(role for role in after.roles if role not in before.roles)
@@ -511,4 +515,4 @@ async def on_member_update(before: discord.Member, after: discord.Member):
             await before.send(message)
 
 
-bot.run(TOKEN)
+client.run(TOKEN)
