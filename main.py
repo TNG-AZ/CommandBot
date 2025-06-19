@@ -145,7 +145,9 @@ async def update_events(guild: discord.Guild, events, discord_events):
                 description=description,
                 start_time=start_dt,
                 end_time=end_dt,
-                location=location)
+                location=location,
+                entity_type=discord.EntityType.external,
+                privacy_level=discord.PrivacyLevel.guild_only)
             inserted += 1
     return f"updated:{updated}, inserted:{inserted}" if updated + inserted > 0 else None
 
@@ -156,7 +158,7 @@ async def generate_events(
         pull_count: int
 ):
     await ctx.response.defer()
-    if not ctx.interaction.permissions.manage_events:
+    if not ctx.user.guild_permissions.manage_events:
         return await ctx.send_followup("https://www.youtube.com/watch?v=RfiQYRn7fBg")
 
     events = google_calendar.get_events(pull_count)
