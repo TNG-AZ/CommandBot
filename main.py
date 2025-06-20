@@ -7,6 +7,7 @@ from markdownify import markdownify
 import time
 import hashlib
 
+from typing import Optional
 import discord
 from discord import SelectOption
 from discord import app_commands
@@ -36,6 +37,7 @@ async def get_future_event_selectmenu(ctx):
             value=str(event.id),
             description=event.description if len(event.description) <= 100 else f"{event.description[:97]}..."
         ))
+    options = options[:min(len(options) - 1, 24)]
     select = Select(
         placeholder="Select an upcoming event",
         min_values=1,
@@ -310,8 +312,8 @@ async def attended_members(ctx,
 @app_commands.describe(role ="Who would you like to message?", channel="What channel to send tagged message?")
 async def event_dm(
         ctx: discord.Interaction,
-        role: discord.Role,
-        channel: discord.TextChannel
+        role: Optional[discord.Role],
+        channel: Optional[discord.TextChannel]
 ):
     await ctx.response.defer()
     await client.wait_until_ready()
@@ -341,14 +343,14 @@ async def event_dm(
         event_id = event_options.values[0]
         event = await ctx.guild.fetch_scheduled_event(event_id)
 
-        if event.subscriber_count == 0:
+        if event.user_count == 0:
             await ctx.send(f"No one seems to be interested in {event.name}")
             return await interaction.message.delete()
 
-        if event.subscriber_count == 1:
-            subscribers = [await event.subscribers().next()]
-        else:
-            subscribers = await event.subscribers().flatten()
+        subscribers = []
+
+        async for u in event.users():
+            subscribers.append(u)
 
         if role:
             subscribers = [sub for sub in subscribers if role in ctx.guild.get_member(sub.id).roles]
@@ -363,7 +365,7 @@ async def event_dm(
             message_type = message_options.values[0]
 
             modal = discord.ui.Modal(title="RSVP Mailer")
-            modal.add_item(discord.InputText(label="Message to send", style=discord.InputTextStyle.long))
+            modal.add_item(discord.ui.TextInput(label="Message to send", style=discord.TextStyle.long))
 
             async def modal_callback(interaction: discord.Interaction):
                 nonlocal event_id, message_type, subscribers, modal
@@ -388,7 +390,8 @@ message:{message}"""
 
                     await interaction.response.defer()
 
-                    sent_button_view = View(Button(disabled=True, label="SENT"))
+                    sent_button_view = View()
+                    sent_button_view.add_item(Button(disabled=True, label="SENT"))
 
                     if message_type == "DM":
                         for sub in subscribers:
@@ -403,23 +406,26 @@ message:{message}"""
                         message_with_tag += "\n\n"
                         message_with_tag += message
                         await interaction.edit_original_response(view=sent_button_view)
-                        return await channel.send(message_with_tag) if channel else await ctx.send(message_with_tag)
+                        return await channel.send(message_with_tag) if channel else await ctx.followup.send(message_with_tag)
 
                 confirm_button.callback = confirm_callback
-                view = View(confirm_button)
-                return await ctx.send(view=view)
+                view = View()
+                view.add_item(confirm_button)
+                return await ctx.followup.send(view=view)
 
-            modal.callback = modal_callback
+            modal.on_submit = modal_callback
             await interaction.response.send_modal(modal)
             return await interaction.delete_original_response()
 
         message_options.callback = message_option_callback
-        view = View(message_options)
+        view = View()
+        view.add_item(message_options)
         return await interaction.edit_original_response(view=view)
 
     event_options.callback = event_select_callback
-    view = View(event_options)
-    await ctx.send_followup("", view=view)
+    view = View()
+    view.add_item(event_options)
+    await ctx.followup.send(content="", view=view)
 
 
 @client.event
