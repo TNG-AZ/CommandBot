@@ -475,6 +475,7 @@ async def on_member_join(member: discord.Member):
                 f"new Discord membership form for {member.mention}\n"
                 + "Website Id\n"
                 + "\n".join(member_ids)
+                + "\n\n"
                 + "\n".join(
                     [f"{index}:{child.value}" for index, child in enumerate(modal.children) if len(child.value) > 0]))
             await button_interaction.message.edit(
