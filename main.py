@@ -434,7 +434,7 @@ async def on_member_join(member: discord.Member):
 
     form_button = Button(
         label="Go to membership form",
-        url=GROUP_FORM_URL
+        url=f"{GROUP_FORM_URL}/?discordId={member.id}"
     )
     confirm_button = Button(label="Confirm")
 
@@ -468,8 +468,13 @@ async def on_member_join(member: discord.Member):
             nonlocal button_interaction
             modal.stop()
 
+            member_ids = json.load(
+                urllib.request.urlopen(f"https://tngaz.org/api/discord/byid/{member.id}?apiKey={TNGAZ_API_KEY}"))
+
             await client.get_channel(RESPONSE_COLLECTOR_CHANNEL_ID).send(
                 f"new Discord membership form for {member.mention}\n"
+                + "Website Id\n"
+                + "\n".join(member_ids)
                 + "\n".join(
                     [f"{index}:{child.value}" for index, child in enumerate(modal.children) if len(child.value) > 0]))
             await button_interaction.message.edit(
