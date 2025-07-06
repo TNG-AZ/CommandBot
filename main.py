@@ -468,8 +468,11 @@ async def on_member_join(member: discord.Member):
             nonlocal button_interaction
             modal.stop()
 
-            member_ids = json.load(
-                urllib.request.urlopen(f"https://tngaz.org/api/discord/byid/{member.id}?apiKey={TNGAZ_API_KEY}"))
+            try:
+                member_ids = json.load(
+                    urllib.request.urlopen(f"https://tngaz.org/api/discord/byid/{member.id}?apiKey={TNGAZ_API_KEY}"))
+            except:
+                member_ids = ["No ID Found"]
 
             await client.get_channel(RESPONSE_COLLECTOR_CHANNEL_ID).send(
                 f"new Discord membership form for {member.mention}\n"
