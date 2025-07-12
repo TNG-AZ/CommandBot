@@ -18,7 +18,7 @@ import google_calendar
 
 # from config_example import TOKEN
 from config import TOKEN, GROUP_NAME, GROUP_FORM_URL, RESPONSE_COLLECTOR_CHANNEL_ID, MEMBER_ROLES_MESSAGES, \
-    TNGAZ_API_KEY, MEMBER_ROLES, THREAD_CHANNEL_IDS, GUILD_ID
+    TNGAZ_API_KEY, MEMBER_ROLES, THREAD_CHANNEL_IDS, GUILD_ID, MEMBER_ROLES_API_ENUM
 
 
 async def get_future_event_selectmenu(ctx):
@@ -80,14 +80,18 @@ times = [
 ]
 
 
-@tasks.loop(time=times)
-async def poll_events():
-    events = google_calendar.get_events(10)
+def get_guild():
     for g in client.guilds:
         if g.id == GUILD_ID:
             guild = g
             break
-    guild = guild or client.guilds[0]
+    return guild or client.guilds[0]
+
+
+@tasks.loop(time=times)
+async def poll_events():
+    events = google_calendar.get_events(10)
+    guild = get_guild()
     channel = client.get_channel(RESPONSE_COLLECTOR_CHANNEL_ID)
     if not events:
         print('No upcoming events found.')
@@ -437,6 +441,7 @@ async def on_member_join(member: discord.Member):
         url=f"{GROUP_FORM_URL}/?discordId={member.id}"
     )
     confirm_button = Button(label="Confirm")
+    already_a_member_button = Button(label="I'm already a member")
 
     async def confirm_button_callback(button_interaction: discord.Interaction):
         modal = discord.ui.Modal(
@@ -490,10 +495,49 @@ async def on_member_join(member: discord.Member):
         modal.on_submit = modal_callback
         return await button_interaction.response.send_modal(modal)
 
+    async def already_a_member_button_callback(button_interaction: discord.Interaction):
+        try:
+            members = json.load(
+                urllib.request.urlopen(f"https://tngaz.org/api/discord/byid/info/{member.id}?apiKey={TNGAZ_API_KEY}"))
+        except:
+            return await button_interaction.response.send("No membership record found")
+
+        suspended = any([m["suspended"] for m in members])
+        if suspended:
+            return await button_interaction.response.send("Currently suspended")
+
+        status_id = max([m["status"] for m in members])
+        role_id = MEMBER_ROLES_API_ENUM[status_id]
+
+        if role_id == 0:
+            return await button_interaction.response.send("No membership record found")
+
+        guild = get_guild()
+        role = guild.get_role(role_id)
+        guild_member = guild.get_member(member.id)
+        await guild_member.add_roles(role)
+
+        await client.get_channel(RESPONSE_COLLECTOR_CHANNEL_ID).send(
+            f"new Discord membership form for {member.mention} - Already a member\n"
+            + "Website Id\n"
+            + "\n".join([str(m["memberId"]) for m in members])
+            + "\n\n"
+            + "Scene Name\n"
+            + "\n".join([str(m["sceneName"]) for m in members])
+            + "\n\n"
+            + "Role\n"
+            + role.mention)
+        await button_interaction.message.edit(
+            content="Welcome Back",
+            view=None
+        )
+
     confirm_button.callback = confirm_button_callback
+    already_a_member_button.callback = already_a_member_button_callback
     view = View(timeout=None)
     view.add_item(form_button)
     view.add_item(confirm_button)
+    view.add_item(already_a_member_button)
 
     await member.send(
         content=f"Please click the form button to go to the {GROUP_NAME} membership form,"
