@@ -432,9 +432,70 @@ message:{message}"""
     await ctx.followup.send(content="", view=view)
 
 
+class MemberInfo:
+    def __init__(self, member: discord.Member):
+        self.welcome_message = "Welcome to the TNG Discord"
+        self.member = member
+        self.guild = get_guild()
+        try:
+            self.records = json.load(
+                urllib.request.urlopen(
+                    f"https://tngaz.org/api/discord/byid/info/{self.member.id}?apiKey={TNGAZ_API_KEY}"))
+
+            status_id = max([r["status"] for r in self.records])
+            role_id = MEMBER_ROLES_API_ENUM[status_id]
+
+            if role_id == 0:
+                raise Exception("Entry not found")
+
+            self.role = self.guild.get_role(role_id)
+        except:
+            self.records = []
+            print(f"No membership record found for discordId: {self.member.id}")
+            return
+
+        self.suspended = any([r["suspended"] for r in self.records])
+        self.scene_name = [r["sceneName"] for r in self.records]
+        self.member_id = [str(r["memberId"]) for r in self.records]
+    async def auto_add_role(self):
+        if not self.records:
+            return "No membership record"
+        if self.suspended:
+            return "Currently suspended"
+
+        guild_member = self.guild.get_member(self.member.id)
+        await guild_member.add_roles(self.role)
+        return self.welcome_message
+
+
+
 @client.event
 async def on_member_join(member: discord.Member):
     await client.wait_until_ready()
+
+    member_info = MemberInfo(member)
+    auto_add_result = member_info.auto_add_role()
+    if auto_add_result == member_info.welcome_message:
+        await client.get_channel(RESPONSE_COLLECTOR_CHANNEL_ID).send(
+            f"Automatic roles on join for {member.mention} - Already a member\n"
+            + "Website Id\n"
+            + "\n".join(member_info.member_id)
+            + "\n\n"
+            + "Scene Name\n"
+            + "\n".join(member_info.scene_name)
+            + "\n\n"
+            + "Role\n"
+            + member_info.role.mention)
+
+        return await member.send("Welcome back")
+    elif member_info.suspended:
+        await client.get_channel(RESPONSE_COLLECTOR_CHANNEL_ID).send(
+            f"Automatic roles denied on join for {member.mention} - Member is suspended\n"
+            + "Website Id\n"
+            + "\n".join(member_info.member_id)
+            + "\n\n"
+            + "Scene Name\n"
+            + "\n".join(member_info.scene_name))
 
     form_button = Button(
         label="Go to membership form",
@@ -486,51 +547,56 @@ async def on_member_join(member: discord.Member):
                 + "\n\n"
                 + "\n".join(
                     [f"{index}:{child.value}" for index, child in enumerate(modal.children) if len(child.value) > 0]))
-            await button_interaction.message.edit(
-                content="Your form response has been received. Please wait while a board "
-                        "member verifies your response",
-                view=None
-            )
+
+            post_member_info = MemberInfo(member)
+            post_auto_add_result = await post_member_info.auto_add_role()
+            if post_auto_add_result == member_info.welcome_message:
+                await client.get_channel(RESPONSE_COLLECTOR_CHANNEL_ID).send(
+                    f"Automatic roles for {member.mention} - New member\n"
+                    + "Website Id\n"
+                    + "\n".join(post_member_info.member_id)
+                    + "\n\n"
+                    + "Scene Name\n"
+                    + "\n".join(post_member_info.scene_name)
+                    + "\n\n"
+                    + "Role\n"
+                    + post_member_info.role.mention)
+
+                await button_interaction.message.edit(
+                    content="Welcome to the server",
+                    view=None
+                )
+            else:
+                await button_interaction.message.edit(
+                    content="Your form response has been received. Please wait while a board "
+                            "member verifies your response",
+                    view=None
+                )
 
         modal.on_submit = modal_callback
         return await button_interaction.response.send_modal(modal)
 
     async def already_a_member_button_callback(button_interaction: discord.Interaction):
-        try:
-            members = json.load(
-                urllib.request.urlopen(f"https://tngaz.org/api/discord/byid/info/{member.id}?apiKey={TNGAZ_API_KEY}"))
-        except:
-            return await button_interaction.response.send("No membership record found")
+        post_member_info = MemberInfo(member)
+        post_auto_add_result = await post_member_info.auto_add_role()
+        if post_auto_add_result == member_info.welcome_message:
+            await client.get_channel(RESPONSE_COLLECTOR_CHANNEL_ID).send(
+                f"Automatic roles for {member.mention} - Existing member\n"
+                + "Website Id\n"
+                + "\n".join(post_member_info.member_id)
+                + "\n\n"
+                + "Scene Name\n"
+                + "\n".join(post_member_info.scene_name)
+                + "\n\n"
+                + "Role\n"
+                + post_member_info.role.mention)
 
-        suspended = any([m["suspended"] for m in members])
-        if suspended:
-            return await button_interaction.response.send("Currently suspended")
-
-        status_id = max([m["status"] for m in members])
-        role_id = MEMBER_ROLES_API_ENUM[status_id]
-
-        if role_id == 0:
-            return await button_interaction.response.send("No membership record found")
-
-        guild = get_guild()
-        role = guild.get_role(role_id)
-        guild_member = guild.get_member(member.id)
-        await guild_member.add_roles(role)
-
-        await client.get_channel(RESPONSE_COLLECTOR_CHANNEL_ID).send(
-            f"new Discord membership form for {member.mention} - Already a member\n"
-            + "Website Id\n"
-            + "\n".join([str(m["memberId"]) for m in members])
-            + "\n\n"
-            + "Scene Name\n"
-            + "\n".join([str(m["sceneName"]) for m in members])
-            + "\n\n"
-            + "Role\n"
-            + role.mention)
-        await button_interaction.message.edit(
-            content="Welcome Back",
-            view=None
-        )
+            await button_interaction.message.edit(
+                content="Welcome Back",
+                view=None
+            )
+        else:
+            button_interaction.response.send(post_auto_add_result)
 
     confirm_button.callback = confirm_button_callback
     already_a_member_button.callback = already_a_member_button_callback
