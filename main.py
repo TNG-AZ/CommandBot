@@ -474,7 +474,7 @@ async def on_member_join(member: discord.Member):
     await client.wait_until_ready()
 
     member_info = MemberInfo(member)
-    auto_add_result = member_info.auto_add_role()
+    auto_add_result = await member_info.auto_add_role()
     if auto_add_result == member_info.welcome_message:
         await client.get_channel(RESPONSE_COLLECTOR_CHANNEL_ID).send(
             f"Automatic roles on join for {member.mention} - Already a member\n"
