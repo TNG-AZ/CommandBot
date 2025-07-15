@@ -17,8 +17,7 @@ from discord.ext import tasks
 import google_calendar
 
 # from config_example import TOKEN
-from config import TOKEN, GROUP_NAME, GROUP_FORM_URL, RESPONSE_COLLECTOR_CHANNEL_ID, MEMBER_ROLES_MESSAGES, \
-    TNGAZ_API_KEY, MEMBER_ROLES, THREAD_CHANNEL_IDS, GUILD_ID, MEMBER_ROLES_API_ENUM
+from config import *
 
 
 async def get_future_event_selectmenu(ctx):
@@ -432,6 +431,21 @@ message:{message}"""
     await ctx.followup.send(content="", view=view)
 
 
+class RecordsResponse:
+    def __init__(self, records):
+        self.records = records
+        status_id = max([r["status"] for r in self.records])
+        role_id = MEMBER_ROLES_API_ENUM[status_id]
+
+        if role_id == 0:
+            raise Exception("Entry not found")
+
+        self.role = get_guild().get_role(role_id)
+
+        self.suspended = any([r["suspended"] for r in self.records])
+        self.scene_name = [r["sceneName"] for r in self.records]
+        self.member_id = [str(r["memberId"]) for r in self.records]
+
 class MemberInfo:
     def __init__(self, member: discord.Member):
         self.welcome_message = "Welcome to the TNG Discord"
@@ -442,21 +456,16 @@ class MemberInfo:
                 urllib.request.urlopen(
                     f"https://tngaz.org/api/discord/byid/info/{self.member.id}?apiKey={TNGAZ_API_KEY}"))
 
-            status_id = max([r["status"] for r in self.records])
-            role_id = MEMBER_ROLES_API_ENUM[status_id]
+            data = RecordsResponse(self.records)
 
-            if role_id == 0:
-                raise Exception("Entry not found")
+            self.role = data.role
 
-            self.role = self.guild.get_role(role_id)
+            self.suspended = data.suspended
+            self.scene_name = data.scene_name
+            self.member_id = data.member_id
         except:
             self.records = []
             print(f"No membership record found for discordId: {self.member.id}")
-            return
-
-        self.suspended = any([r["suspended"] for r in self.records])
-        self.scene_name = [r["sceneName"] for r in self.records]
-        self.member_id = [str(r["memberId"]) for r in self.records]
     async def auto_add_role(self):
         if not self.records:
             return "No membership record"
@@ -617,6 +626,68 @@ async def join_server(ctx):
     await ctx.response.defer()
     await on_member_join(ctx.user)
 
+
+@tree.command(name="sync_roles", guild=discord.Object(id=GUILD_ID))
+async def sync_roles(ctx, demote: bool):
+    await ctx.response.defer()
+
+    await ctx.followup.send("Syncing roles")
+    response_channel = client.get_channel(RESPONSE_COLLECTOR_CHANNEL_ID)
+    try:
+        records = json.load(
+            urllib.request.urlopen(
+                f"https://tngaz.org/api/discord/members?apiKey={TNGAZ_API_KEY}"))
+        if len(records) == 0:
+            raise Exception("No records found")
+
+    except:
+        return await response_channel.send("unable to sync roles")
+
+    guild = get_guild()
+
+    promoted = []
+    demoted = []
+
+    community_member_role = guild.get_role(COMMUNITY_MEMBER_ROLE_ID)
+    tng_member_role = guild.get_role(TNG_MEMBER_ROLE_ID)
+
+    for r in records:
+        discordId = r["discordId"]
+        member = guild.get_member(discordId)
+        if member:
+            data = RecordsResponse(r["records"])
+            roles = member.roles
+            honorary = any([r.id == HONORARY_MEMBER_ROLE_ID for r in roles])
+            board = any([r.id == BOARD_ROLE_ID for r in roles])
+            community_member = any([r.id == COMMUNITY_MEMBER_ROLE_ID for r in roles])
+            tng_member = any([r.id == TNG_MEMBER_ROLE_ID for r in roles])
+            if board or honorary or data.suspended:
+                pass
+            else:
+                if community_member and data.role.id == TNG_MEMBER_ROLE_ID:
+                    await member.add_roles(tng_member_role)
+                    await member.remove_roles(community_member_role)
+                    try:
+                        await member.send("You have received the TNG Member role.")
+                    except:
+                        pass
+                    promoted.append(member)
+                elif tng_member and data.role.id == COMMUNITY_MEMBER_ROLE_ID:
+                    if demote:
+                        await member.add_roles(community_member_role)
+                        await member.remove_roles(tng_member_role)
+                        try:
+                            await member.send("Your TNG membership has lapsed or you have aged out, "
+                                        "please DM a board member if this was a mistake.")
+                        except:
+                            pass
+                    demoted.append(member)
+    return await response_channel.send(
+        "Updated Roles\n" +
+        "Promoted: " + ", ".join([p.mention for p in promoted]) +
+        "\n" +
+        ("Demoted" if demote else "Would have been demoted") + ": " + ", ".join([d.mention for d in demoted])
+    )
 
 @tree.command(name="get_ids")
 async def get_member_ids(ctx):
