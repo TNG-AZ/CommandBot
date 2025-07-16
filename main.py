@@ -451,6 +451,13 @@ class MemberInfo:
         self.welcome_message = "Welcome to the TNG Discord"
         self.member = member
         self.guild = get_guild()
+
+        self.role = None
+
+        self.suspended = None
+        self.scene_name = None
+        self.member_id = None
+
         try:
             self.records = json.load(
                 urllib.request.urlopen(
@@ -605,7 +612,7 @@ async def on_member_join(member: discord.Member):
                 view=None
             )
         else:
-            button_interaction.response.send(post_auto_add_result)
+            member.send(post_auto_add_result)
 
     confirm_button.callback = confirm_button_callback
     already_a_member_button.callback = already_a_member_button_callback
