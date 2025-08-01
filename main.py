@@ -696,6 +696,40 @@ async def sync_roles(ctx, demote: bool):
         ("Demoted" if demote else "Would have been demoted") + ": " + ", ".join([d.mention for d in demoted])
     )
 
+@tree.command(name="get_no_web_acct", guild=discord.Object(id=GUILD_ID))
+async def sync_roles(ctx):
+    await ctx.response.defer()
+
+    await ctx.followup.send("Getting orphaned Discord accounts")
+    response_channel = client.get_channel(RESPONSE_COLLECTOR_CHANNEL_ID)
+    try:
+        records = json.load(
+            urllib.request.urlopen(
+                f"https://tngaz.org/api/discord/members?apiKey={TNGAZ_API_KEY}"))
+        if len(records) == 0:
+            raise Exception("No records found")
+
+    except:
+        return await response_channel.send("unable to sync roles")
+
+    ids = set([r["discordId"] for r in records])
+    guild = get_guild()
+    orphans = [m for m in guild.members if m.id not in ids and len(m.roles) > 1]
+    if orphans:
+        await response_channel.send("Orphans")
+
+        message = orphans[0].mention
+        for i in range(len(orphans)):
+            if len(message) + len(orphans[i].mention) >= 2000:
+                await response_channel.send(message)
+                message = orphans[i].mention
+            else:
+                message += f", {orphans[i].mention}"
+        return await response_channel.send(message)
+    else:
+        await response_channel.send("No orphans")
+
+
 @tree.command(name="get_ids")
 async def get_member_ids(ctx):
     if not ctx.user.guild_permissions.moderate_members:
